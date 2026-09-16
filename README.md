@@ -98,3 +98,104 @@ Presenter - презентер содержит основную логику п
 `emit<T extends object>(event: string, data?: T): void` - инициализация события. При вызове события в метод передается название события и объект с данными, который будет использован как аргумент для вызова обработчика.  
 `trigger<T extends object>(event: string, context?: Partial<T>): (data: T) => void` - возвращает функцию, при вызове которой инициализируется требуемое в параметрах событие с передачей в него данных из второго параметра.
 
+
+### Данные
+В приложении используются две сущности, которые описывают данные, — товар и покупатель.
+
+#### Интерфейс IProduct
+Описывает структуру товара для отображения в каталоге и использования в корзине. Содержит основные характеристики: название, описание, категорию, цену и ссылку на изображение. Поле price может быть null, если цена временно не указана.
+
+interface IProduct {
+  id: string;
+  description: string;
+  image: string;
+  title: string;
+  category: string;
+  price: number | null;
+}
+
+#### Интерфейс IBuyer
+Описывает данные покупателя, необходимые для оформления заказа. Содержит способ оплаты и контактную информацию.
+
+interface IBuyer {
+  payment: TPayment;
+  email: string;
+  phone: string;
+  address: string;
+} 
+
+### Модели данных 
+
+#### Класс ProductsCatalog
+Класс хранения данных о каталоге товаров. Управляет состоянием списка товаров и выбранным элементом.
+
+Поля класса: 
+`products: IProduct[]` - актуальный список всех товаров. 
+`selectedProduct: IProduct | null` - товар, выбранный для подробного отображения.
+
+Конструктор инициализирует внутреннее состояние каталога: `constructor() {this.products = []; this.selectedProduct = null }`.
+
+Методы: 
+`setProducts(products: IProduct[]): void` - метод сохранения данных в каталоге товаров.
+`getProducts(): IProduct[]`- метод получения массива всех товаров.
+`getProductById(id: string): IProduct | undefined` - метод получения одного товара по его id.
+`setSelectedProduct(product: IProduct): void` - метод сохранения товара для подробного отображения.
+`getSelectedProduct(): IProduct | null` - метод получения товара для подробного отображения. 
+
+#### Класс ProductsCart
+Класс хранения товаров, выбранных покупателем для покупки. Управляет состоянием этих товаров. 
+
+Поля класса: 
+`items: IProduct[]` - актуальный список выбранных товаров. 
+
+Конструктор: класс создаётся с пустым массивом товаров:`constructor() {this.items = [];}`.
+
+Методы:
+`getItems(): IProduct[]` - возвращает текущий список товаров в корзине. 
+`addItem(product: IProduct): void` - добавляет товар в корзину. 
+`removeItem(product: IProduct): void` - удаляет товар из корзины.
+`clear(): void` — очистка корзины. 
+`getTotalPrice(): number` - получение стоимости всех товаров в корзине. 
+`getTotalCount(): number` - получение количества товаров в корзине.
+`hasItem(id: string): boolean` - проверка наличия товара в корзине по его id.
+
+### Класс Customer 
+Отвечает за хранение и валидацию данных покупателя.
+
+Поля класса: 
+`payment: TPayment | ''` - способ оплаты.
+`email: string` - email.
+`phone: string` - телефон.
+`address: string` - адреc.
+
+Конструктор инициализирует состояние объекта безопасными значениями: 
+`constructor() {
+    this.payment = '';
+    this.email = '';
+    this.phone = '';
+    this.address = '';
+    }`
+
+Методы: 
+`update(data: Partial<{ payment?: TPayment; email?: string; phone?: string; address?: string }>): void` - сохранение данных.
+`getData(): IBuyer | null` - получение всех данных покупателя.
+`clear(): void` - очистка данных покупателя.
+`validate(): ValidationErrors`- валидация данных. 
+Метод Проверяет каждое обязательное поле на заполненность.
+Если поле пустое или содержит только пробелы — добавляет в результат сообщение об ошибке.
+Если все поля заполнены — возвращает пустой объект типа `ValidationErrors`, где ключи — это имена полей, а значения — тексты ошибок.
+
+#### Слой коммуникации
+
+### Класс AppApi 
+Класс для взаимодействия с API интернет-магазина. Реализует методы для получения каталога товаров и отправки заказов, используя композицию с базовым классом `Api`.
+
+Конструктор: `constructor(api: IApi) {this.api = api;}`.
+
+Поля класса:
+`api: IApi` - поле, хранящее экземпляр API-клиента для выполнения запросов.
+
+Методы: 
+`getProducts(): Promise<IProductsResponse> {return this.api.get<IProductsResponse>('/product/')}`- получает список товаров из каталога.
+
+`postOrder(orderData: IOrderRequest): Promise<IOrderResponse> {return this.api.post<IOrderResponse>('/order/', orderData)}` - отправляет данные заказа на сервер.
