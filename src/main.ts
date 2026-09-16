@@ -7,54 +7,53 @@ import { API_URL} from '../src/utils/constants';
 import { Api } from './components/base/Api';
 import { AppApi } from './components/Models/AppApi'
 
+//Проверка методов класса ProductsCatalog
 
 const productsModel = new ProductsCatalog();
 productsModel.setProducts(apiProducts.items); 
-
 console.log(`Массив товаров из каталога:`, productsModel.getProducts());
 console.log(`Продукт, найденный по id`, productsModel.getProductById('854cef69-976d-4c2a-a18c-2aa45046c390'));
+productsModel.setSelectedProduct(apiProducts.items[0]);
+console.log(`Выбранный товар для подробного отображения:`, productsModel.getSelectedProduct());
 
-const newProduct = {
-    "id": "854cef69-976d-4c2a-a18c-2aa45046c489",
-    "description": "Новый продукт!!!",
-    "image": "/5_Dots.svg",
-    "title": "Новенький",
-    "category": "софт-скил",
-    "price": 700
-}
-
-productsModel.setSelectedProduct(newProduct);
-console.log(`Новый продукт:`, productsModel.getSelectedProduct());
+//Проверка методов класса ProductsCart
 
 const productsCartModel = new ProductsCart();
-console.log(`Что в корзине`, productsCartModel.getItems());
-productsCartModel.addItem(newProduct);
-console.log(`Что в корзине теперь`, productsCartModel.getItems());
-const secondnewProduct = {
-    "id": "854cef69-976d-4c2111111111111",
-    "description": "Апельсин",
-    "image": "/5_Dots.svg",
-    "title": "Апельсин",
-    "category": "софт-скил",
-    "price": 10
-}
-productsCartModel.addItem(secondnewProduct);
-console.log(`Что в корзине на этот раз`, productsCartModel.getItems());
-console.log(`есть такой товар?:`, productsCartModel.hasItem('854cef69-976d-4c211111111111'))
+console.log(`Текущий список товаров в корзине`, productsCartModel.getItems());
+productsCartModel.addItem(apiProducts.items[0]);
+productsCartModel.addItem(apiProducts.items[1]);
+productsCartModel.addItem(apiProducts.items[2]);
+console.log(`Корзина с добавленными товарами`, productsCartModel.getItems());
+productsCartModel.removeItem(apiProducts.items[0]);
+console.log(`Корзина с удаленным товаром`, productsCartModel.getItems());
+console.log(`Стоимость всех товаров в корзине`, productsCartModel.getTotalPrice());
+console.log(`Количество всех товаров в корзине`, productsCartModel.getTotalCount());
+console.log(`Есть товар с таким id?:`, productsCartModel.hasItem('854cef69-976d-4c211111111111'));
+productsCartModel.clear();
+console.log(`Корзина после очистки`, productsCartModel.getItems());
 
-//productsCartModel.removeItem(newProduct);
+//Проверка методов класса Customer
 
-const firstCustomer = new Customer ();
+const firstCustomer = new Customer();
 firstCustomer.update( {
     payment:'',
     address:'',
     email:'ag@yandex.ru',
     phone:'98798'
 })
+console.log(`Получаем сохраненные данные покупателя`, firstCustomer.getData());
+firstCustomer.clear();
+console.log(`Получаем данные покупателя после очистки`, firstCustomer.getData());
+const secondCustomer = new Customer();
+secondCustomer.update( {
+    payment:'',
+    address:'Spb',
+    email:'yg@yandex.ru',
+    phone:'565555'
+})
+console.log(`Проверяем поля на заполненность`, secondCustomer.validate());
 
-console.log(firstCustomer.getData());
-//firstCustomer.clear();
-console.log(firstCustomer.validate());
+//Проверка класса AppApi
 
 const api = new Api(API_URL);
 const test = new AppApi(api);

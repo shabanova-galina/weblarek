@@ -103,25 +103,25 @@ Presenter - презентер содержит основную логику п
 В приложении используются две сущности, которые описывают данные, — товар и покупатель.
 
 #### Интерфейс IProduct
-Описывает структуру товара для отображения в каталоге и использования в корзине. Содержит основные характеристики: название, описание, категорию, цену и ссылку на изображение. Поле price может быть null, если цена временно не указана.
+Описывает структуру товара для отображения в каталоге и использования в корзине. 
 
 interface IProduct {
-  id: string;
-  description: string;
-  image: string;
-  title: string;
-  category: string;
-  price: number | null;
+  `id: string`; - уникальный идентификатор продукта.
+  `description: string`; - описание продукта.
+  `image: string`; - ссылка на изображение продукта.
+  `title: string`; - название продукта.
+  `category: string`; - категория продукта.
+  `price: number | null`; - цена продукта. Поле price может быть null, если цена временно не указана.
 }
 
 #### Интерфейс IBuyer
-Описывает данные покупателя, необходимые для оформления заказа. Содержит способ оплаты и контактную информацию.
+Описывает данные покупателя, необходимые для оформления заказа. 
 
 interface IBuyer {
-  payment: TPayment;
-  email: string;
-  phone: string;
-  address: string;
+  `payment: TPayment`; - способ оплаты.
+  `email: string`; - адрес электронной почты. 
+  `phone: string`; - телефон.
+  `address: string`; - адрес.
 } 
 
 ### Модели данных 
@@ -177,13 +177,12 @@ interface IBuyer {
     }`
 
 Методы: 
-`update(data: Partial<{ payment?: TPayment; email?: string; phone?: string; address?: string }>): void` - сохранение данных.
-`getData(): IBuyer | null` - получение всех данных покупателя.
+`update(data: Partial< IBuyer >): void` - сохранение данных.
+`getData(): IBuyer` - получение всех данных покупателя.
 `clear(): void` - очистка данных покупателя.
-`validate(): ValidationErrors`- валидация данных. 
+`validate(): Partial<Record<keyof IBuyer, string>> `- валидация данных. 
 Метод Проверяет каждое обязательное поле на заполненность.
 Если поле пустое или содержит только пробелы — добавляет в результат сообщение об ошибке.
-Если все поля заполнены — возвращает пустой объект типа `ValidationErrors`, где ключи — это имена полей, а значения — тексты ошибок.
 
 #### Слой коммуникации
 
@@ -197,5 +196,4 @@ interface IBuyer {
 
 Методы: 
 `getProducts(): Promise<IProductsResponse> {return this.api.get<IProductsResponse>('/product/')}`- получает список товаров из каталога.
-
 `postOrder(orderData: IOrderRequest): Promise<IOrderResponse> {return this.api.post<IOrderResponse>('/order/', orderData)}` - отправляет данные заказа на сервер.

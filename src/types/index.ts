@@ -38,10 +38,3 @@ export interface IBuyer {
 
 export type TPayment = 'card' | 'cash' | '';
 
-export interface ValidationErrors {
-  payment?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-}
-

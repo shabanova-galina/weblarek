@@ -1,6 +1,5 @@
 import { IBuyer } from '../../types/index'
 import { TPayment } from '../../types/index'
-import { ValidationErrors } from '../../types/index'
 
 export class Customer {
     private payment: TPayment;
@@ -15,22 +14,14 @@ export class Customer {
         this.address = '';
     }
     
-    update(data: Partial<{ 
-        payment?: TPayment; 
-        email?: string; 
-        phone?: string; 
-        address?: string 
-    }>): void {
-    if (data.payment !== undefined) this.payment = data.payment;
-    if (data.email !== undefined) this.email = data.email;
-    if (data.phone !== undefined) this.phone = data.phone;
-    if (data.address !== undefined) this.address = data.address;
+    update(data: Partial< IBuyer >): void {
+        if (data.payment !== undefined) this.payment = data.payment;
+        if (data.email !== undefined) this.email = data.email;
+        if (data.phone !== undefined) this.phone = data.phone;
+        if (data.address !== undefined) this.address = data.address;
     }
 
-    getData(): IBuyer | null {
-        if (!this.email && !this.phone && !this.address && this.payment === '') {
-            return null;
-        }
+    getData(): IBuyer {
         return {
             payment: this.payment,
             email: this.email,
@@ -46,8 +37,8 @@ export class Customer {
         this.address = '';
     }
 
-    validate(): ValidationErrors {
-        const errors: ValidationErrors = {};
+    validate(): Partial<Record<keyof IBuyer, string>> {
+        const errors: Partial<Record<keyof IBuyer, string>> = {};
 
         if (!this.email.trim()) {
             errors.email = 'Укажите емэйл';
