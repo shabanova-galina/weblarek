@@ -38,3 +38,6 @@ export interface IBuyer {
 
 export type TPayment = 'card' | 'cash' | '';
 
+export type ValidationError = Partial<Record<keyof IBuyer, string>>;
+
+

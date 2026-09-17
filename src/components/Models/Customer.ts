@@ -1,5 +1,6 @@
 import { IBuyer } from '../../types/index'
 import { TPayment } from '../../types/index'
+import { ValidationError } from '../../types/index'
 
 export class Customer {
     private payment: TPayment;
@@ -37,8 +38,8 @@ export class Customer {
         this.address = '';
     }
 
-    validate(): Partial<Record<keyof IBuyer, string>> {
-        const errors: Partial<Record<keyof IBuyer, string>> = {};
+    validate(): ValidationError {
+        const errors: ValidationError = {};
 
         if (!this.email.trim()) {
             errors.email = 'Укажите емэйл';
