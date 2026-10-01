@@ -60,7 +60,7 @@ Presenter - презентер содержит основную логику п
 Класс является дженериком и принимает в переменной `T` тип данных, которые могут быть переданы в метод `render` для отображения.
 
 Конструктор:  
-`constructor(container: HTMLElement)` - принимает ссылку на DOM элемент за отображение, которого он отвечает.
+`constructor(container: HTMLElement)` - принимает ссылку на DOM элемент, за отображение которого он отвечает.
 
 Поля класса:  
 `container: HTMLElement` - поле для хранения корневого DOM элемента компонента.
@@ -184,9 +184,9 @@ interface IBuyer {
 Метод Проверяет каждое обязательное поле на заполненность.
 Если поле пустое или содержит только пробелы — добавляет в результат сообщение об ошибке.
 
-#### Слой коммуникации
+### Слой коммуникации
 
-### Класс AppApi 
+#### Класс AppApi 
 Класс для взаимодействия с API интернет-магазина. Реализует методы для получения каталога товаров и отправки заказов, используя композицию с базовым классом `Api`.
 
 Конструктор: `constructor(api: IApi) {this.api = api;}`.
@@ -197,3 +197,352 @@ interface IBuyer {
 Методы: 
 `getProducts(): Promise<IProductsResponse> {return this.api.get<IProductsResponse>('/product/')}`- получает список товаров из каталога.
 `postOrder(orderData: IOrderRequest): Promise<IOrderResponse> {return this.api.post<IOrderResponse>('/order/', orderData)}` - отправляет данные заказа на сервер.
+
+
+### Слой представления 
+
+#### Класс Header 
+Отвечает за отображение шапки сайта, управление кнопкой корзины и счётчиком товаров в ней. 
+
+Конструктор инициализирует состояние объекта, находя необходимые DOM-элементы внутри контейнера и подписываясь на событие клика по кнопке корзины:
+constructor(container: HTMLElement, events: IEvents) {
+        super(container);
+
+        this.counterElement = ensureElement<HTMLElement>('.header__basket-counter', this.container);
+        this.basketButton = ensureElement<HTMLButtonElement>('.header__basket', this.container);
+
+        this.basketButton.addEventListener('click', () => {
+            events.emit('basket:opened')
+        })
+    }
+
+Поля класса:
+counterElement: HTMLElement - элемент DOM, отображающий количество товаров в корзине.
+basketButton: HTMLButtonElement - кнопка открытия корзины в шапке сайта.
+
+Методы: 
+set counter(value: number) {
+        this.counterElement.textContent = String(value);
+    } - обновляет текст счётчика товаров в корзине. 
+
+#### Класс Gallery
+Отвечает за отрисовку галереи товаров на странице.
+
+Конструктор инициализирует состояние объекта, находя корневой элемент галереи внутри переданного контейнера:
+constructor(container: HTMLElement) {
+        super(container);
+
+        this.catalogElement = ensureElement<HTMLElement>('.gallery');
+    }
+
+Поля класса: 
+catalogElement: HTMLElement — контейнер внутри галереи, куда добавляются карточки товаров.
+
+Методы класса: 
+set catalog(items: HTMLElement[]): void — принимает массив готовых DOM-элементов (карточек товаров) и добавляет их в конец списка внутри контейнера .gallery.
+
+#### Класс Modal
+Отвечает за управление модальным окном.
+
+Конструктор  инициализирует состояние объекта, находя необходимые DOM-элементы внутри контейнера и подписываясь на события закрытия:
+constructor(container: HTMLElement) {
+        super(container);
+
+        this.closeButtonElement = ensureElement<HTMLButtonElement>('.modal__close', this.container);
+        this.contentElement = ensureElement<HTMLElement>('.modal__content', this.container);
+        this.windowElement = ensureElement<HTMLElement>('.modal__container', this.container);
+
+        this.closeButtonElement.addEventListener('click', this.close.bind(this));
+        this.container.addEventListener('click', this.close.bind(this));
+        this.windowElement.addEventListener('click', (event) => event.stopPropagation());
+    }
+
+Поля класса:
+closeButtonElement: HTMLButtonElement — кнопка закрытия модального окна (крестик).
+contentElement: HTMLElement — контейнер внутри модалки, куда вставляется основной контент (карточка товара, форма и т.д.).
+windowElement: HTMLElement — внутренняя область модального окна (.modal__container), клик по которой не должен закрывать окно.
+
+Методы класса: 
+set content(value: HTMLElement): void — заменяет всё содержимое контейнера .modal__content на переданный элемент. 
+open(): void — делает модальное окно видимым, добавляя CSS-класс modal_active к корневому контейнеру. 
+close(): void — скрывает модальное окно, удаляя класс modal_active, и очищает внутренний контент (удаляет все дочерние элементы из .modal__content). 
+render(data: IModalData): HTMLElement — стандартный метод отрисовки компонента. Принимает данные, вызывает базовый render, автоматически открывает окно и возвращает корневой контейнер.
+
+#### Класс Success 
+Отвечает за отображение экрана успешной оплаты (модального окна с подтверждением заказа).
+
+Конструктор инициализирует состояние объекта, находя необходимые DOM-элементы внутри контейнера и подписываясь на событие клика по кнопке закрытия:
+constructor(container: HTMLElement, events: IEvents) {
+        super(container);
+
+        this.descriptionElement = ensureElement('.order-success__description', this.container);
+        this.closeButton = ensureElement<HTMLButtonElement>('.order-success__close', this.container);
+
+        this.closeButton.addEventListener('click', () => {
+            events.emit('success:closed')
+        });
+    }
+
+Поля класса: 
+descriptionElement: HTMLElement — элемент, отображающий итоговую сумму списания.
+closeButton: HTMLButtonElement — кнопка закрытия экрана.
+
+Методы: 
+set totalsum(value: number): void — обновляет текст в элементе описания.
+
+#### Класс Form
+Абстрактный класс, отвечает за базовую логику работы с формами.
+
+Конструктор инициализирует состояние объекта, находя элемент для ошибок внутри переданного контейнера формы:
+constructor(container: HTMLElement) { 
+        super(container);
+
+        this.errorsElement = ensureElement<HTMLElement>('.form__errors', this.container)
+    }
+
+Поля класса: 
+errorsElement: HTMLElement — элемент DOM внутри формы, предназначенный для вывода текстовых сообщений об ошибках валидации.
+
+Методы:
+set errors(message: string): void — устанавливает текстовое сообщение об ошибке в элемент errorsElement.
+
+#### Класс FormContacts
+Отвечает за отображение и обработку формы ввода контактных данных (email и телефон) на этапе оформления заказа.
+
+Конструктор инициализирует состояние объекта, находя необходимые DOM-элементы внутри контейнера формы, и подписывается на события ввода данных и клика по кнопке:
+constructor(container: HTMLElement, events: IEvents) {
+        super(container);
+
+        this.emailInput = ensureElement<HTMLInputElement>('input[name="email"]', this.container);
+        this.phoneInput = ensureElement<HTMLInputElement>('input[name="phone"]', this.container);
+        this.buttonToPay = ensureElement<HTMLButtonElement>('button[type="submit"]', this.container);
+
+        this.emailInput.addEventListener('input', (e) => {
+            const value = (e.target as HTMLInputElement).value;
+            // Эмитим событие: "Пользователь изменил email"
+            events.emit('customer:email-changed', { value });
+        });
+
+        this.phoneInput.addEventListener('input', (e) => {
+            const value = (e.target as HTMLInputElement).value;
+            // Эмитим событие: "Пользователь изменил телефон"
+            events.emit('customer:phone-changed', { value });
+        });
+
+        this.buttonToPay.addEventListener('click', (e) => {
+            e.preventDefault();
+            events.emit('buttonToPay:clicked')
+        });
+    }
+
+Поля класса: 
+emailInput: HTMLInputElement — поле ввода для email-адреса.
+phoneInput: HTMLInputElement — поле ввода для номера телефона. 
+buttonToPay: HTMLButtonElement — кнопка подтверждения («Оплатить»), которая может блокироваться/разблокироваться в зависимости от валидности данных.
+
+Методы: 
+set buttonDisabled(isDisabled: boolean): void — управляет состоянием доступности кнопки «Оплатить».
+
+#### Класс FormOrder
+Отвечает за отображение и обработку формы выбора способа оплаты и ввода адреса доставки. 
+Предоставляет поля для ввода адреса, кнопки выбора способа оплаты (карта/наличные) и кнопку перехода к следующему шагу. Отслеживает изменения в реальном времени, эмитит соответствующие события и управляет доступностью кнопки «Далее». 
+
+Конструктор инициализирует состояние объекта, находя необходимые DOM-элементы внутри контейнера формы, и подписывается на события ввода данных, выбора способа оплаты и клика по кнопке перехода:
+    constructor(container: HTMLElement, events: IEvents) {
+        super(container);
+
+        this.addressInput = ensureElement<HTMLInputElement>('input[name="address"]', this.container);
+        this.cardButton = ensureElement<HTMLButtonElement>('button[name="card"]', this.container);
+        this.cashButton = ensureElement<HTMLButtonElement>('button[name="cash"]', this.container);
+        this.buttonNextStep = ensureElement<HTMLButtonElement>('button[type="submit"]', this.container);
+
+        this.addressInput.addEventListener('input', (e) => {
+            const target = e.target as HTMLInputElement;
+            const value = target.value;
+            // Эмитим событие: "Пользователь изменил адрес"
+            events.emit('customer:address-changed', { value });
+        });
+
+        this.cardButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            events.emit('payment:clicked', { method: 'card' }); // Одно событие, разные данные
+        });
+
+        this.cashButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            events.emit('payment:clicked', { method: 'cash' }); // Одно событие, разные данные
+        }); 
+        
+        this.buttonNextStep.addEventListener('click', (e) => {
+            e.preventDefault();
+            events.emit('buttonNextStep:clicked')
+        });
+    }
+
+Поля класса: 
+addressInput: HTMLInputElement — поле ввода для адреса доставки. 
+cardButton: HTMLButtonElement — кнопка выбора оплаты картой. 
+cashButton: HTMLButtonElement — кнопка выбора оплаты наличными. 
+buttonNextStep: HTMLButtonElement — кнопка перехода к следующему шагу («Далее»), которая может блокироваться/разблокироваться в зависимости от валидности данных.
+
+Методы: 
+set buttonDisabled(isDisabled: boolean): void — управляет состоянием доступности кнопки «Далее». 
+
+#### Класс Card
+Абстрактный класс, отвечает за базовую структуру и логику отображения карточки товара: установку заголовка и цены. 
+
+Конструктор инициализирует состояние объекта, находя необходимые элементы внутри контейнера карточки:
+ constructor(container: HTMLElement) {
+    super(container);// Передаем найденный элемент родителю
+
+    this.titleElement = ensureElement<HTMLElement>('.card__title', this.container);
+    this.priceElement = ensureElement<HTMLElement>('.card__price', this.container);
+    }
+
+    protected set title(value: string) {
+        this.titleElement.textContent = String(value);
+    }
+
+    protected set price(value: number | null) {
+        if (value !== null && value !== undefined) {
+        this.priceElement.textContent = `${value} синапсов`;
+        }
+        else {
+            this.priceElement.textContent = `Бесценно`;
+        }
+    }
+
+Поля класса: 
+titleElement: HTMLElement — элемент DOM, отображающий заголовок товара. 
+priceElement: HTMLElement — элемент DOM, отображающий цену товара.
+
+Методы: 
+set title(value: string): void — устанавливает текст заголовка карточки. 
+set price(value: number | null): void — устанавливает цену товара.
+
+#### Класс CardInCatalog
+Отвечает за отображение карточки товара в каталоге. Управляет переключением CSS-классов для визуального выделения категории. Может принимать внешний обработчик клика. 
+
+Конструктор инициализирует состояние объекта, находя необходимые DOM-элементы внутри контейнера карточки, и при необходимости подписывается на событие клика через переданный объект действий:
+constructor(container: HTMLElement, actions?: ICardActions) {
+        super(container); 
+        this.categoryElement = ensureElement<HTMLElement>('.card__category', this.container);
+        this.imageElement = ensureElement<HTMLImageElement>('.card__image', this.container);
+        if (actions?.onClick) {
+            this.container.addEventListener('click', actions.onClick);
+        }       
+    }
+
+Поля класса: 
+imageElement: HTMLImageElement — элемент изображения товара. 
+categoryElement: HTMLElement — элемент отображения категории товара.
+
+Методы: 
+set image(value: string): void — устанавливает источник изображения для карточки. 
+et category(value: string): void — устанавливает текст категории и переключает CSS-классы для визуального выделения. 
+
+#### Класс CardPreview
+Отвечает за отображение карточки товара в модальном окне (превью).
+
+Конструктор инициализирует состояние объекта, находя необходимые DOM-элементы внутри контейнера, сохраняет начальный обработчик клика и вешает слушатель на кнопку:
+    constructor(container: HTMLElement, initialHandler: () => void) {
+        super(container); 
+        this.textElement = ensureElement<HTMLElement>('.card__text', this.container);
+        this.buttonElement = ensureElement<HTMLButtonElement>('.card__button', this.container);
+        this.onButtonClick = initialHandler;
+
+        this.buttonElement.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.onButtonClick();
+        });
+    }
+
+Поля класса:
+textElement: HTMLElement — элемент DOM, отображающий текстовое описание товара. 
+buttonElement: HTMLButtonElement — кнопка действия внутри карточки.
+onButtonClick: () => void — приватная функция-колбэк, которая выполняется при клике на кнопку. Хранит логику, переданную извне.
+
+Методы: 
+public setOnClickHandler(handler: () => void): void — позволяет внешнему коду (контроллеру) заменить функцию-обработчик клика.
+set anotherTextButton(value: string): void — обновляет текст на кнопке действия. 
+set text(value: string): void — обновляет текстовое описание товара в карточке. 
+set setDisabled(value: boolean): void — блокирует или разблокирует кнопку действия.
+
+#### Класс CardInBasket
+Отвечает за отображение карточки товара внутри корзины (в списке выбранных товаров). 
+
+Конструктор инициализирует состояние объекта, находя необходимые DOM-элементы внутри контейнера карточки, устанавливает начальный порядковый номер и при необходимости подписывается на событие клика по кнопке удаления:
+constructor(container: HTMLElement,  index: number, actions?: ICardActions) {
+        super(container); 
+
+        this.indexElement = ensureElement<HTMLElement>('.basket__item-index', this.container);
+        this.deleteButton = ensureElement<HTMLButtonElement>('.basket__item-delete', this.container);
+
+        this.index = index;
+
+        if (actions?.onClick) {
+            this.deleteButton.addEventListener('click', actions.onClick);
+        };
+    }
+
+Поля класса: 
+indexElement: HTMLElement — элемент DOM, отображающий порядковый номер товара в корзине. 
+deleteButton: HTMLButtonElement — кнопка удаления товара из корзины.
+
+Методы: 
+set index(value: number): void — устанавливает и отображает порядковый номер товара в списке корзины.
+
+#### Класс Basket
+Отвечает за отображение и управление состоянием блока корзины (список товаров, итоговая цена, кнопка оформления заказа).
+
+Конструктор инициализирует состояние объекта, находя необходимые DOM-элементы внутри контейнера блока корзины, и при необходимости подписывается на событие клика по кнопке оформления заказа:
+constructor(container: HTMLElement, actions?: ICardActions) {
+        super(container);
+
+        this.basketElement = ensureElement<HTMLElement>('.basket__list', this.container);
+        this.orderButton = ensureElement<HTMLButtonElement>('.basket__button',this.container);
+        this.priceElement = ensureElement<HTMLElement>('.basket__price', this.container);
+
+        if (actions?.onClick) {
+            this.orderButton.addEventListener('click', actions.onClick);
+        };
+    }
+
+Поля класса: 
+basketElement: HTMLElement — контейнер для списка товаров в корзине. 
+orderButton: HTMLButtonElement — кнопка оформления заказа. 
+priceElement: HTMLElement — элемент отображения итоговой стоимости.
+
+Методы: 
+set basketList(items: HTMLElement[]): void — заменяет всё содержимое списка товаров в корзине на переданный массив DOM-элементов (карточек товаров). 
+set price(value: number): void — устанавливает и отображает итоговую стоимость заказа. 
+set isDisabled(value: boolean): void — блокирует или разблокирует кнопку оформления заказа. 
+
+### Cобытия
+События каталога товаров:
+- 'catalog:updated' - генерируется моделью данных (ProductsCatalog) при изменении списка товаров.
+Информирует о том, что список товаров изменился. Слушатели обязаны перерисовать галерею карточек.
+
+События взаимодействия с карточкой товара:
+- 'card:clicked' - генерируется компонентом представления (CardInCatalog) при клике пользователя на карточку товара в галерее.
+Сообщает о выборе конкретного товара. 
+
+События формы оформления заказа:
+- 'customer:address-changed' - генерируется при каждом изменении текста в поле ввода адреса.
+- 'payment:clicked' - генерируется при клике на кнопку выбора способа оплаты.
+- 'buttonNextStep:clicked' - генерируется при клике на кнопку «Далее».
+
+События формы контактов:
+- 'customer:email-changed' - генерируется при каждом изменении текста в поле Email.
+- 'customer:phone-changed' - генерируется при каждом изменении текста в поле Телефон.
+- 'buttonToPay:clicked' - генерируется при клике на кнопку «Оплатить».
+
+События корзины и управления товарами:
+- 'toAdd:clicked' - генерируется при клике на кнопку "Добавить в корзину» (внутри модального окна или карточки).
+- 'toDelete:clicked' - генерируется при клике на кнопку «Удалить из корзины» (внутри корзины или модального окна).
+- 'basket:updated' - генерируется после успешного добавления или удаления товара из модели ProductsCart.
+- 'basket:opened' - при клике на кнопку корзины в шапке сайта (Header).
+
+События модальных окон и экранов завершения:
+- 'success:closed' - генерируется при клике на кнопку закрытия экрана.
+- 'modal:closed' - генерируется при любом способе закрытия модального окна (кнопка закрытия, клик вне окна).

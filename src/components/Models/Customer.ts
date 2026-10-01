@@ -1,6 +1,7 @@
-import { IBuyer } from '../../types/index'
-import { TPayment } from '../../types/index'
-import { ValidationError } from '../../types/index'
+import { IBuyer } from '../../types/index';
+import { TPayment } from '../../types/index';
+import { ValidationError } from '../../types/index';
+import { IEvents } from '../base/Events';
 
 export class Customer {
     private payment: TPayment;
@@ -8,18 +9,36 @@ export class Customer {
     private phone: string;
     private address: string;
 
-    constructor() {
+    constructor(protected events: IEvents) {
         this.payment = '';
         this.email = '';
         this.phone = '';
         this.address = '';
     }
     
-    update(data: Partial< IBuyer >): void {
-        if (data.payment !== undefined) this.payment = data.payment;
-        if (data.email !== undefined) this.email = data.email;
-        if (data.phone !== undefined) this.phone = data.phone;
-        if (data.address !== undefined) this.address = data.address;
+    update(data: Partial<IBuyer>): void {
+        let hasChanged = false;
+        if (data.payment !== undefined && data.payment !== this.payment) {
+            this.payment = data.payment;
+            hasChanged = true;
+        }
+        if (data.email !== undefined && data.email !== this.email) {
+            this.email = data.email;
+            hasChanged = true;
+        }
+        if (data.phone !== undefined && data.phone !== this.phone) {
+            this.phone = data.phone;
+            hasChanged = true;
+        }
+        if (data.address !== undefined && data.address !== this.address) {
+            this.address = data.address;
+            hasChanged = true;
+        }
+        if (hasChanged) {
+            this.events.emit('customer:updated', {
+                data: this.getData(), // Отправляем актуальные данные
+            });
+        }     
     }
 
     getData(): IBuyer {
@@ -32,10 +51,17 @@ export class Customer {
     }
 
     clear(): void {
+        const oldData = this.getData();
+
         this.payment = '';
         this.email = '';
         this.phone = '';
         this.address = '';
+
+        this.events.emit('customer:cleared', {
+            previousData: oldData, // Опционально
+            currentData: this.getData()
+        });
     }
 
     validate(): ValidationError {
