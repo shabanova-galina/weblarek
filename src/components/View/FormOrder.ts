@@ -3,14 +3,16 @@ import { IEvents } from "../base/Events";
 import { Form } from "./Form";
 
 interface IFormOrder {
-    buttonDisabled: boolean;
+    address: string;
+    setPayment():void;
+    
 }
 
 export class FormOrder extends Form <IFormOrder>{
     protected addressInput: HTMLInputElement;
     protected cardButton: HTMLButtonElement;
     protected cashButton: HTMLButtonElement;
-    protected buttonNextStep: HTMLButtonElement;
+    protected nextStepButton: HTMLButtonElement;
 
     constructor(container: HTMLElement, events: IEvents) {
         super(container);
@@ -18,34 +20,50 @@ export class FormOrder extends Form <IFormOrder>{
         this.addressInput = ensureElement<HTMLInputElement>('input[name="address"]', this.container);
         this.cardButton = ensureElement<HTMLButtonElement>('button[name="card"]', this.container);
         this.cashButton = ensureElement<HTMLButtonElement>('button[name="cash"]', this.container);
-        this.buttonNextStep = ensureElement<HTMLButtonElement>('button[type="submit"]', this.container);
+        this.nextStepButton = ensureElement<HTMLButtonElement>('.order__button', this.container);
 
         this.addressInput.addEventListener('input', (e) => {
             const target = e.target as HTMLInputElement;
-            const value = target.value;
+            const address = target.value;
             // Эмитим событие: "Пользователь изменил адрес"
-            events.emit('customer:address-changed', { value });
+            events.emit('customer:address-clicked', { address });
         });
 
-        
         this.cardButton.addEventListener('click', (e) => {
             e.preventDefault();
-            events.emit('payment:clicked', { method: 'card' }); // Одно событие, разные данные
+            events.emit('payment:clicked', { payment: 'card' }); // Одно событие, разные данные
         });
 
         this.cashButton.addEventListener('click', (e) => {
             e.preventDefault();
-            events.emit('payment:clicked', { method: 'cash' }); // Одно событие, разные данные
+            events.emit('payment:clicked', { payment: 'cash' }); // Одно событие, разные данные
         }); 
-        
-        this.buttonNextStep.addEventListener('click', (e) => {
-            e.preventDefault();
-            events.emit('buttonNextStep:clicked')
+
+        this.nextStepButton.addEventListener('click', () => {
+            events.emit('nextStepButton:clicked')
         });
+
+    }
+        
+    set address(value: string) {
+        const safeValue = String(value || '');
+        this.addressInput.value = safeValue;
     }
 
-    set buttonDisabled(isDisabled: boolean) {
-        this.buttonNextStep.disabled = isDisabled;
-  }
+    setPayment(type: 'card' | 'cash') {
+        
+        this.cardButton.classList.remove('button_alt-active');
+        this.cashButton.classList.remove('button_alt-active');
 
-}
+        if (type === 'card') {
+            this.cardButton.classList.add('button_alt-active');
+      
+        } else if (type === 'cash') {
+            this.cashButton.classList.add('button_alt-active');
+        }
+        }
+    }
+
+
+
+

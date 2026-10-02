@@ -32,7 +32,6 @@ export class ProductsCart {
 
     addItem(product: IProduct): void {
         this.items.push(product);
-
         this.events.emit('cart:changed', { 
             item: product, 
             totalCount: this.items.length,
@@ -55,7 +54,6 @@ export class ProductsCart {
       clear(): void {
         const removedItems = [...this.items];
         this.items = [];
-        
         this.events.emit('cart:changed', { 
             removedItems, 
             totalCount: 0,
@@ -64,9 +62,3 @@ export class ProductsCart {
     }
 }
 
-/*
-events.on('cart:added', (data) => {
-    header.counter = data.totalCount; // Быстро и просто
-});
-
-*/

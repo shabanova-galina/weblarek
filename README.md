@@ -128,6 +128,7 @@ interface IBuyer {
 
 #### Класс ProductsCatalog
 Класс хранения данных о каталоге товаров. Управляет состоянием списка товаров и выбранным элементом.
+Эмитит события 'catalog:changed', 'selectedProduct:changed'.
 
 Поля класса: 
 `products: IProduct[]` - актуальный список всех товаров. 
@@ -144,6 +145,7 @@ interface IBuyer {
 
 #### Класс ProductsCart
 Класс хранения товаров, выбранных покупателем для покупки. Управляет состоянием этих товаров. 
+Эмитит событие 'cart:changed'.
 
 Поля класса: 
 `items: IProduct[]` - актуальный список выбранных товаров. 
@@ -160,7 +162,7 @@ interface IBuyer {
 `hasItem(id: string): boolean` - проверка наличия товара в корзине по его id.
 
 ### Класс Customer 
-Отвечает за хранение и валидацию данных покупателя.
+Отвечает за хранение и валидацию данных покупателя. Эмитит событие 'customer:updated'.
 
 Поля класса: 
 `payment: TPayment | ''` - способ оплаты.
@@ -297,14 +299,17 @@ set totalsum(value: number): void — обновляет текст в элем�
 constructor(container: HTMLElement) { 
         super(container);
 
-        this.errorsElement = ensureElement<HTMLElement>('.form__errors', this.container)
+        this.errorsElement = ensureElement<HTMLElement>('.form__errors', this.container);
+        this.buttonForm = ensureElement<HTMLButtonElement>('button[type="submit"]', this.container)
     }
 
 Поля класса: 
 errorsElement: HTMLElement — элемент DOM внутри формы, предназначенный для вывода текстовых сообщений об ошибках валидации.
+buttonForm: HTMLButtonElement - кнопка отправки формы. 
 
 Методы:
 set errors(message: string): void — устанавливает текстовое сообщение об ошибке в элемент errorsElement.
+set buttonDisabled(isDisabled) - блокирует или разблокирует кнопку отправки (disabled атрибут).
 
 #### Класс FormContacts
 Отвечает за отображение и обработку формы ввода контактных данных (email и телефон) на этапе оформления заказа.
@@ -341,7 +346,9 @@ phoneInput: HTMLInputElement — поле ввода для номера тел�
 buttonToPay: HTMLButtonElement — кнопка подтверждения («Оплатить»), которая может блокироваться/разблокироваться в зависимости от валидности данных.
 
 Методы: 
-set buttonDisabled(isDisabled: boolean): void — управляет состоянием доступности кнопки «Оплатить».
+set email (value: string) - метод для валидации ошибок. 
+set phone (value: string) - метод для валидации ошибок.
+
 
 #### Класс FormOrder
 Отвечает за отображение и обработку формы выбора способа оплаты и ввода адреса доставки. 
@@ -354,7 +361,7 @@ set buttonDisabled(isDisabled: boolean): void — управляет состо�
         this.addressInput = ensureElement<HTMLInputElement>('input[name="address"]', this.container);
         this.cardButton = ensureElement<HTMLButtonElement>('button[name="card"]', this.container);
         this.cashButton = ensureElement<HTMLButtonElement>('button[name="cash"]', this.container);
-        this.buttonNextStep = ensureElement<HTMLButtonElement>('button[type="submit"]', this.container);
+        this.nextStepButton = ensureElement<HTMLButtonElement>('.order__button', this.container);
 
         this.addressInput.addEventListener('input', (e) => {
             const target = e.target as HTMLInputElement;
@@ -373,9 +380,9 @@ set buttonDisabled(isDisabled: boolean): void — управляет состо�
             events.emit('payment:clicked', { method: 'cash' }); // Одно событие, разные данные
         }); 
         
-        this.buttonNextStep.addEventListener('click', (e) => {
+        this.nextStepButton.addEventListener('click', (e) => {
             e.preventDefault();
-            events.emit('buttonNextStep:clicked')
+            events.emit('nextStepButton:clicked')
         });
     }
 
@@ -386,7 +393,8 @@ cashButton: HTMLButtonElement — кнопка выбора оплаты нал�
 buttonNextStep: HTMLButtonElement — кнопка перехода к следующему шагу («Далее»), которая может блокироваться/разблокироваться в зависимости от валидности данных.
 
 Методы: 
-set buttonDisabled(isDisabled: boolean): void — управляет состоянием доступности кнопки «Далее». 
+set address(value: string) — метод для валидации ошибок.
+setPayment(type: 'card' | 'cash') - метод для валидации ошибок.
 
 #### Класс Card
 Абстрактный класс, отвечает за базовую структуру и логику отображения карточки товара: установку заголовка и цены. 
@@ -445,28 +453,30 @@ et category(value: string): void — устанавливает текст ка�
 Отвечает за отображение карточки товара в модальном окне (превью).
 
 Конструктор инициализирует состояние объекта, находя необходимые DOM-элементы внутри контейнера, сохраняет начальный обработчик клика и вешает слушатель на кнопку:
-    constructor(container: HTMLElement, initialHandler: () => void) {
+    constructor(container: HTMLElement, events: IEvents) {
         super(container); 
         this.textElement = ensureElement<HTMLElement>('.card__text', this.container);
         this.buttonElement = ensureElement<HTMLButtonElement>('.card__button', this.container);
-        this.onButtonClick = initialHandler;
+        this.imageElement = ensureElement<HTMLImageElement>('.card__image', this.container);
+        this.categoryElement = ensureElement<HTMLElement>('.card__category', this.container);
 
-        this.buttonElement.addEventListener('click', (e) => {
-            e.preventDefault();
-            this.onButtonClick();
+        this.buttonElement.addEventListener('click', () => {
+            events.emit('preview:clicked')
         });
     }
 
 Поля класса:
 textElement: HTMLElement — элемент DOM, отображающий текстовое описание товара. 
 buttonElement: HTMLButtonElement — кнопка действия внутри карточки.
-onButtonClick: () => void — приватная функция-колбэк, которая выполняется при клике на кнопку. Хранит логику, переданную извне.
+imageElement: HTMLImageElement - элемент DOM для управления изображением.
+categoryElement: HTMLElement -элемент DOM для управления категорией.
 
 Методы: 
-public setOnClickHandler(handler: () => void): void — позволяет внешнему коду (контроллеру) заменить функцию-обработчик клика.
-set anotherTextButton(value: string): void — обновляет текст на кнопке действия. 
-set text(value: string): void — обновляет текстовое описание товара в карточке. 
-set setDisabled(value: boolean): void — блокирует или разблокирует кнопку действия.
+set description(value: string) - обновляет описание карточки. 
+set anotherTextButton(value: string) — обновляет текст на кнопке действия. 
+set setDisabled(value: boolean) — блокирует или разблокирует кнопку действия.
+set image - управляет ссылкой на изображение. 
+set category - управляет категорией.
 
 #### Класс CardInBasket
 Отвечает за отображение карточки товара внутри корзины (в списке выбранных товаров). 
@@ -519,30 +529,25 @@ set price(value: number): void — устанавливает и отображ�
 set isDisabled(value: boolean): void — блокирует или разблокирует кнопку оформления заказа. 
 
 ### Cобытия
-События каталога товаров:
-- 'catalog:updated' - генерируется моделью данных (ProductsCatalog) при изменении списка товаров.
+События каталога товаров и карточки:
+- 'catalog:updated' - эмитится моделью данных (ProductsCatalog) при изменении списка товаров.
 Информирует о том, что список товаров изменился. Слушатели обязаны перерисовать галерею карточек.
+- 'card:clicked' - генерируется компонентом представления (CardInCatalog) при клике пользователя на карточку товара в галерее.Сообщает о выборе конкретного товара. 
+- 'selectedProduct:changed' - эмитится в ProductsCatalog. Сообщает об изменении выбранного товара.
+- 'preview:clicked' - эмитится в CardPreview. Сообщает о том, что пользователь нажал кнопку действия (Добавить/Удалить) в превью.
 
-События взаимодействия с карточкой товара:
-- 'card:clicked' - генерируется компонентом представления (CardInCatalog) при клике пользователя на карточку товара в галерее.
-Сообщает о выборе конкретного товара. 
+События корзины:
+- 'cart:changed' - генерируется в ProductsCart (после add/remove/clear).
+- 'basket:opened' - генерируется при клике на кнопку корзины в шапке сайта (Header).
+- 'card:deleted' - генерируется в CardInBasket (кнопка удаления в корзине).
 
-События формы оформления заказа:
-- 'customer:address-changed' - генерируется при каждом изменении текста в поле ввода адреса.
-- 'payment:clicked' - генерируется при клике на кнопку выбора способа оплаты.
-- 'buttonNextStep:clicked' - генерируется при клике на кнопку «Далее».
+Оформление заказа (Customer & Forms):
 
-События формы контактов:
-- 'customer:email-changed' - генерируется при каждом изменении текста в поле Email.
-- 'customer:phone-changed' - генерируется при каждом изменении текста в поле Телефон.
-- 'buttonToPay:clicked' - генерируется при клике на кнопку «Оплатить».
-
-События корзины и управления товарами:
-- 'toAdd:clicked' - генерируется при клике на кнопку "Добавить в корзину» (внутри модального окна или карточки).
-- 'toDelete:clicked' - генерируется при клике на кнопку «Удалить из корзины» (внутри корзины или модального окна).
-- 'basket:updated' - генерируется после успешного добавления или удаления товара из модели ProductsCart.
-- 'basket:opened' - при клике на кнопку корзины в шапке сайта (Header).
-
-События модальных окон и экранов завершения:
-- 'success:closed' - генерируется при клике на кнопку закрытия экрана.
-- 'modal:closed' - генерируется при любом способе закрытия модального окна (кнопка закрытия, клик вне окна).
+- 'customer:address-changed' - генерируется в FormOrder при каждом изменении текста в поле ввода адреса.
+- 'payment:clicked' - генерируется в FormOrder при клике на кнопку выбора способа оплаты.
+- 'customer:email-changed' - генерируется в FormContacts при каждом изменении текста в поле Email.
+- 'customer:phone-changed' - генерируется в FormContacts при каждом изменении текста в поле Phone.
+- 'customer:updated' - генерируется в Customer (внутри метода update, если данные изменились).
+- 'nextStepButton:clicked' - генерируется в FormOrder (кнопка «Далее»).
+- 'buttonToPay:clicked' - генерируется в FormContacts (кнопка «Оплатить»).
+- 'success:closed' - генерируется в Success (кнопка закрытия окна успеха).

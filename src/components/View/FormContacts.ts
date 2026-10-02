@@ -3,7 +3,8 @@ import { IEvents } from "../base/Events";
 import { Form } from "./Form";
 
 interface IFormContacts {
-    buttonDisabled: boolean
+    email: string;
+    phone: string;
 }
 
 export class FormContacts extends Form <IFormContacts>{
@@ -11,7 +12,7 @@ export class FormContacts extends Form <IFormContacts>{
     protected phoneInput: HTMLInputElement;
     protected buttonToPay: HTMLButtonElement;
 
-    constructor(container: HTMLElement, events: IEvents) {
+    constructor(container: HTMLElement,  events:IEvents) {
         super(container);
 
         this.emailInput = ensureElement<HTMLInputElement>('input[name="email"]', this.container);
@@ -19,15 +20,14 @@ export class FormContacts extends Form <IFormContacts>{
         this.buttonToPay = ensureElement<HTMLButtonElement>('button[type="submit"]', this.container);
 
         this.emailInput.addEventListener('input', (e) => {
-            const value = (e.target as HTMLInputElement).value;
+            const email = (e.target as HTMLInputElement).value;
             // Эмитим событие: "Пользователь изменил email"
-            events.emit('customer:email-changed', { value });
+            events.emit('customer:email-changed', { email });
         });
-
         this.phoneInput.addEventListener('input', (e) => {
-            const value = (e.target as HTMLInputElement).value;
+            const phone = (e.target as HTMLInputElement).value;
             // Эмитим событие: "Пользователь изменил телефон"
-            events.emit('customer:phone-changed', { value });
+            events.emit('customer:phone-changed', { phone });
         });
 
         this.buttonToPay.addEventListener('click', (e) => {
@@ -36,7 +36,12 @@ export class FormContacts extends Form <IFormContacts>{
         });
     }
 
-    set buttonDisabled(isDisabled: boolean) {
-        this.buttonToPay.disabled = isDisabled;
-  }
+    set email (value: string) {
+        this.emailInput.value = value;
+    }
+    
+    set phone (value: string) {
+        this.phoneInput.value = value;
+    }
+
 }

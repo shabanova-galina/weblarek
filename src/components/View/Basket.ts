@@ -7,7 +7,7 @@ interface IBasket {
     isDisabled: boolean;
 }
 
-export interface ICardActions {
+export interface IBasketActions {
     onClick?: () => void;
 } 
 
@@ -16,7 +16,7 @@ export class Basket extends Component<IBasket> {
     protected orderButton: HTMLButtonElement; 
     protected priceElement: HTMLElement;
 
-    constructor(container: HTMLElement, actions?: ICardActions) {
+    constructor(container: HTMLElement, actions?: IBasketActions) {
         super(container);
 
         this.basketElement = ensureElement<HTMLElement>('.basket__list', this.container);

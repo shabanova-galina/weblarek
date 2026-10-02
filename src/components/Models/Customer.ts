@@ -4,12 +4,14 @@ import { ValidationError } from '../../types/index';
 import { IEvents } from '../base/Events';
 
 export class Customer {
+    private events: IEvents;
     private payment: TPayment;
     private email: string;
     private phone: string;
     private address: string;
 
-    constructor(protected events: IEvents) {
+    constructor(events: IEvents) {
+        this.events = events;
         this.payment = '';
         this.email = '';
         this.phone = '';
@@ -35,9 +37,7 @@ export class Customer {
             hasChanged = true;
         }
         if (hasChanged) {
-            this.events.emit('customer:updated', {
-                data: this.getData(), // Отправляем актуальные данные
-            });
+            this.events.emit('customer:updated', this.getData());
         }     
     }
 
@@ -58,10 +58,8 @@ export class Customer {
         this.phone = '';
         this.address = '';
 
-        this.events.emit('customer:cleared', {
-            previousData: oldData, // Опционально
-            currentData: this.getData()
-        });
+        this.events.emit('customer:updated', this.getData()
+        );
     }
 
     validate(): ValidationError {

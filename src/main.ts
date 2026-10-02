@@ -21,10 +21,11 @@ import { FormContacts } from './components/View/FormContacts';
 import { FormOrder } from './components/View/FormOrder';
 import { ensureElement } from './utils/utils';
 import { IOrderRequest } from './types';
+import { Form } from './components/View/Form';
 
 const events = new EventEmitter();
 const api = new Api(API_URL);
-const test = new AppApi(api);
+const appApiProject = new AppApi(api);
 const mainGalery = new Gallery(document.querySelector('.gallery') as HTMLElement);
 const productsModel = new ProductsCatalog(events);
 const productsInCart = new ProductsCart(events);
@@ -37,10 +38,9 @@ const formOrder = new FormOrder(cloneTemplate<HTMLElement>('#order'), events);
 const formContacts = new FormContacts(cloneTemplate<HTMLElement>('#contacts'), events);
 const successForm = new Success(cloneTemplate<HTMLElement>('#success'), events);
 
-
-async function testLoad() {
+async function productsLoad() {
     try {
-        const response = await test.getProducts();
+        const response = await appApiProject.getProducts();
         console.log('Ответ получен от сервера:', response);
         const productsArray = response.items;
         productsModel.setProducts(productsArray);
@@ -48,27 +48,37 @@ async function testLoad() {
         console.error('Ошибка при загрузке товаров:', error);
   }
 }
-testLoad();
+productsLoad();
 
-//При изменении списка товаров карточки перерисовываются
+const CDN_URL = `${import.meta.env.VITE_API_ORIGIN}/content/weblarek`;
+
 events.on('catalog:changed',() => {
     const itemCards = productsModel.getProducts().map((item) => {
+        //console.log(item.image);
+        const imageUrl = `${CDN_URL}/${item.image}`;
         const card = new CardInCatalog(cloneTemplate('#card-catalog'), {
             onClick: () => events.emit('card:clicked', item),
         });
+        item.image = imageUrl;
         return card.render(item); 
     });
 
     mainGalery.render( { catalog: itemCards});
     });
 
-//При нажатии на карточку товара открывается модальное окно с информацией о товаре (внутри могут быть разные кнопки)
-const cardPrev = new CardPreview(cloneTemplate<HTMLElement>('#card-preview'), () => {});
- events.on('card:clicked', (item) => {
-    const isInCart = productsInCart.hasItem(item.id); 
-    const isPriceNull = item.price === null;
+events.on('card:clicked', (item) => {
+    productsModel.setSelectedProduct(item);
+});
+
+const cardPrev = new CardPreview(cloneTemplate<HTMLElement>('#card-preview'), events);
+
+events.on('selectedProduct:changed', () => {
+    const selectedItem = productsModel.getSelectedProduct();
+    const isInCart = productsInCart.hasItem(selectedItem.id); 
+    const isPriceNull = selectedItem.price === null;
     let buttonText = ''; 
     let isDisabled = false;
+    cardPrev.render(selectedItem);
     if (isPriceNull) { 
         buttonText = 'Недоступно'; 
         isDisabled = true;
@@ -79,37 +89,23 @@ const cardPrev = new CardPreview(cloneTemplate<HTMLElement>('#card-preview'), ()
         buttonText = 'Добавить в корзину'; 
         isDisabled = false;
     }
-    cardPrev.render(item);
-    cardPrev.render({ text: item.description });
-    cardPrev.render({ anotherTextButton: buttonText, setDisabled: isDisabled});
-    cardPrev.setOnClickHandler(() => {
-        const currentIsInCart = productsInCart.hasItem(item.id);
-        if (currentIsInCart) {
-            events.emit('toDelete:clicked', item);
-        } else {
-            events.emit('toAdd:clicked', item);
-        }
-    });
-    modal.render( {content: cardPrev.render()});
- });
+    modal.render( {content:cardPrev.render({ anotherTextButton: buttonText, setDisabled: isDisabled})});
+});
 
-//При нажатии на кнопку "В корзину" товар должен добавиться в корзину (если не был добавлен ранее), модальное окно закрывается;
-events.on('toAdd:clicked', (item) => {
-    productsInCart.addItem(item);
+events.on('preview:clicked', () => {
+    const currentProduct = productsModel.getSelectedProduct();
+     if (!currentProduct) return;
+     const isInCart = productsInCart.hasItem(currentProduct.id);
+     if (isInCart) {
+        productsInCart.removeItem(currentProduct);
+    } else {
+        productsInCart.addItem(currentProduct);
+    }
     modal.close();
 });
 
-events.on('toDelete:clicked', (item) => {
-    productsInCart.removeItem(item);
-    modal.close();
-});
-
-events.on('cart:changed', (data) =>{
+events.on('cart:changed', (data) => {
     header.render( {counter: data.totalCount}); 
-});
-
-//Добавленные в корзину товары должны отображаться в корзине
-events.on('basket:opened',() => {
     const itemInCards = productsInCart.getItems().map((item, index) => {
         const cardInCart = new CardInBasket(cloneTemplate<HTMLElement>('#card-basket'), index + 1, {
             onClick: () => events.emit('card:deleted', item),
@@ -119,108 +115,70 @@ events.on('basket:opened',() => {
     const items = productsInCart.getItems();
     const check = items.length === 0;
     const itemPrice = productsInCart.getTotalPrice();
-    modal.render( {content:basket.render({
-        basketList: itemInCards, 
-        price: itemPrice,
-        isDisabled: check })
+    basket.render({ basketList: itemInCards,  price: itemPrice, isDisabled: check });
+});
+
+events.on('basket:opened',() => {
+    modal.render( {content:basket.render()
     });
-})
+});
     
-events.on('card:deleted',(item) => {
-    productsInCart.removeItem(item);
-    const itemInCards = productsInCart.getItems().map((item, index) => {
-    return cardInCart.render(item);
-    });
-    const itemPrice = productsInCart.getTotalPrice();
-    const items = productsInCart.getItems();
-    const check = items.length === 0;
-    modal.render( {content:basket.render({basketList: itemInCards, price: itemPrice, isDisabled: check})} )
+events.on('card:deleted', (item) => {
+    productsInCart.removeItem(item)
 });
 
 events.on('order:clicked', () => {
+    customer.clear();
     modal.render( {content:formOrder.render()});
 });
 
-events.on('buttonNextStep:clicked', () => {
-    modal.render( {content:formContacts.render()});
+events.on('customer:address-clicked', (data) => {
+    customer.update(data);
 });
 
-// Формы 
-
-let selectedPaymentMethod: 'card' | 'cash' | null = null;
-
-events.on('customer:address-changed', (data) => {
-    const addressFromForm = data.value.trim();
-    console.log('Введен адрес', addressFromForm);
-    customer.update ({
-        address: addressFromForm
-    });
-    checkStepOneValidation();
+events.on('payment:clicked', (data)  => {
+    customer.update(data);
 });
-
-events.on('payment:clicked', (data) => { 
-    selectedPaymentMethod = data.method;
-    console.log('Выбран способ оплаты:', selectedPaymentMethod)
-    customer.update ({
-        payment: selectedPaymentMethod
-    });
-    checkStepOneValidation();
-});
-
-function checkStepOneValidation(): boolean {
-    const currentData = customer.getData();
-    const address = currentData.address.trim();
-    const hasPayment = currentData.payment !== '';
-    let hasErrors = false;
-    let errorMessage = '';
-    if (!address) {
-        hasErrors = true;
-        errorMessage += 'Укажите адрес для доставки. ';
-    }
-    if (!hasPayment) {
-        hasErrors = true;
-        errorMessage += 'Необходимо выбрать способ оплаты. ';
-    }
-    formOrder.render({errors: errorMessage, buttonDisabled: hasErrors});
-    // Возвращаем true, если всё ок (нет ошибок)
-    return !hasErrors;
-}
 
 events.on('customer:email-changed', (data) => {
-    const emailFromForm = data.value.trim();
-    console.log('Введен email:', emailFromForm);
-    customer.update ({
-        email: emailFromForm
-    });
-    checkStepTwoValidation();
+     customer.update(data);
 });
 
 events.on('customer:phone-changed', (data) => {
-    const phoneFromForm = data.value.trim();
-    console.log('Введен phone:', phoneFromForm);
-    customer.update ({
-        phone: phoneFromForm
-    });
-    checkStepTwoValidation();
+     customer.update(data);
 });
 
-function checkStepTwoValidation(): boolean {
-    const currentData = customer.getData();
-    const email = currentData.email.trim();
-    const phone = currentData.phone.trim();
-    let hasErrors = false;
-    let errorMessage = '';
-    if (!email) {
-        hasErrors = true;
-        errorMessage += 'Необходимо указать e-mail. ';
-    }
-    if (!phone) {
-        hasErrors = true;
-        errorMessage += 'Необходимо указать номер телефона. ';
-    }
-    formContacts.render({errors: errorMessage, buttonDisabled: hasErrors});
-    return !hasErrors;
+events.on('customer:updated', (data) => {
+    formOrder.render(data);
+    formOrder.setPayment(data.payment);
+    formContacts.render( data );
+    const errors = customer.validate();
+
+    const isValidOrder = (!errors.payment && !errors.address);
+    if (isValidOrder) {
+       formOrder.render({buttonDisabled: !isValidOrder, errors:''});
 }
+    const isValidContacts = (!errors.email && !errors.phone);
+    if (isValidContacts) {
+       formContacts.render({buttonDisabled: !isValidContacts, errors:''});
+}
+    if (errors.payment) {
+        formOrder.render({errors: errors.payment})
+    };
+    if (errors.address) {
+        formOrder.render({errors: errors.address})
+    };
+    if (errors.email) {
+        formContacts.render({errors: errors.email})
+    };
+    if (errors.phone) {
+        formContacts.render({errors: errors.phone})
+    };
+});
+
+events.on('nextStepButton:clicked', () => {
+    modal.render( {content:formContacts.render()});
+});
 
 events.on('buttonToPay:clicked', async () => {
     const customerData = customer.getData();
@@ -234,14 +192,13 @@ events.on('buttonToPay:clicked', async () => {
         address: customerData.address,
         payment: customerData.payment,
         total: successSum,
-        //Отправляем только ID товаров, как требует интерфейс
         items: finalItems.map(item => item.id) 
     };
 
     try {
 
         console.log('Отправка заказа...', orderPayload);
-        const response = await test.postOrder(orderPayload);
+        const response = await appApiProject.postOrder(orderPayload);
         console.log('Заказ успешно создан! ID:', response.id);
         productsInCart.clear();
         customer.clear();
